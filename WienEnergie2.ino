@@ -5,8 +5,7 @@
 #include <WiFiClientST.h>
 #include <ArduinoHttpClient.h>
 //#include <HttpClient.h>
-#include <aREST.h>
-aREST rest = aREST();
+
 
 #include <ArduinoJson.h>
 
@@ -67,9 +66,6 @@ void setup() {
      // wait for serial port to connect. Needed for native USB port only
   }
 
-  rest.set_id("008");
-  rest.set_name("dapper_drake");
-  //rest.function("balance_check",blc_check );
   
   Serial.println("\n\r-----------------------------------------\n\rStart");
   

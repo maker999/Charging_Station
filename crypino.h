@@ -68,7 +68,7 @@
 //#include <nist256p1.h>
 //#include <rand.h>
 //#include <ripemd160.h>
-#include <hmac.h>
+//#include <hmac.h>
 //#include <coins_count.h>
 //#include <secp256k1.h>
 //#include <blake2s.h>
