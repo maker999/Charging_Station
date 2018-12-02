@@ -5,7 +5,8 @@
 #include <WiFiClientST.h>
 #include <ArduinoHttpClient.h>
 //#include <HttpClient.h>
-
+//#include <aREST.h>
+//aREST rest = aREST();
 
 #include <ArduinoJson.h>
 
@@ -36,7 +37,7 @@ int port = 8000;
 
 
 WiFiClient wificlient;
-WiFiServer wifiserver(8080);
+WiFiServer wifiserver(80);
 //HttpClient client = HttpClient(wificlient, serverAddress, port);
 
 ArduinoJWT jwt1 = ArduinoJWT("");
@@ -55,7 +56,8 @@ String byte2string(uint8_t* bytarr, uint8_t len);
 String post_http(const char* path,const char* pubkey,String postData);
 void hex2byte(const char* respc, uint8_t* hx, uint8_t len);
 
-float kwh0,kwh1;
+double kwh0,kwh1;
+String postData,response;
  
 void setup() {
 
@@ -66,6 +68,9 @@ void setup() {
      // wait for serial port to connect. Needed for native USB port only
   }
 
+//  rest.set_id("008");
+//  rest.set_name("dapper_drake");
+  //rest.function("balance_check",blc_check );
   
   Serial.println("\n\r-----------------------------------------\n\rStart");
   
@@ -84,7 +89,7 @@ void setup() {
 //  uint8_t i = 0;
   do{
      atcab_get_pubkey(0, pk);
-  }while(crypino_status != ATCA_SUCCESS); //while(pk[i++]==0) ;
+  }while(pk[13]==0);      //while(crypino_status != ATCA_SUCCESS);
 
   Serial.println("secure element:");
   
@@ -104,26 +109,17 @@ void setup() {
   Serial.println(ip);
   String nfc_text = keystr + "," + ip;
   if(nfcTag.writeTxt(nfc_text.c_str()) == false) Serial1.println("NFC Write Failed!");  
-  
   else Serial.println("Pubkey is written on the NFC"); 
+  
   Serial.println("-----");
   
   
   jsonTX["public_key"]= keystr;  
-  
-}
-
-void loop() {
-
-  String postData = "";           //"{\"public_key\":\"046136CFA009A12D9A4133A87C39E76ACAB9DB748D030D89240972189371ED19D06AC625F73DEEDA744FAC79D89FD2E8F5DBD31DA9C6203BF934B9EE13511B009A\"}";
-  
+ 
   jsonTX.printTo(postData); 
  
-  String response = post_http("/v1/key-exchange", 0 , postData.c_str() );
-//  Serial.println("----------my pubkey is sent.");
-  
-//  char ccc[]="{\"status\": true, \"data\": {\"public_key\": \"0441EAA7F6DED3F51F8BF381CE3CEB925FD6FA22884C22B8DDA7AC8BCAFCC979506152F7755E99CC7061307FAB86EB399457DF520724D4C84217CCEF22FD0AB8DE\"}}";
-//  JsonObject& jsonRX = jsonBuffer.parseObject(ccc);
+  response = post_http("/v1/key-exchange", 0 , postData.c_str() );
+
   JsonObject& jsonRX = jsonBuffer.parseObject( response );
   
   Serial.println("----server's pubkey is received:");
@@ -147,61 +143,144 @@ void loop() {
   jwt1.setPSK(byte2string(secret,32));
 
   Serial.print("\n\rsecret: ");
-  Serial.println(byte2string(secret,32));
+  Serial.println(byte2string(secret,32)); 
+}
+
+void loop() {
+
+//  char text_read[100]={'\0'};
+//  nfcTag.readTxt(text_read);
+//  Serial.print("Message content: ");
+//  Serial.println(text_read);
+//  
+//  
+//  delay(1000);
+//  return;
 
   //---------------------------------------------------------------------------------------
   String tkn;
   WiFiClient wcl = wifiserver.available();       // listen for incoming clients
-  String header,user_pk;
-  if(wcl){                             // If a new client connects,
-    Serial.println("New Client.");          // print a message out in the serial port
-    String currentLine = "";                // make a String to hold incoming data from the client
-    while (wcl.connected()) {            // loop while the client's connected
-      if (wcl.available()) {             // if there's bytes to read from the client,
-        char c = wcl.read();             // read a byte, then
-        Serial.write(c);                    // print it out the serial monitor
-        header += c;
-        if (c == '\n') {                    // if the byte is a newline character
-          // if the current line is blank, you got two newline characters in a row.
-          // that's the end of the client HTTP request, so send a response:
-          if (currentLine.length() == 0) {
-            // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
-            // and a content-type so the client knows what's coming, then a blank line:
+  
+  char user_pk[129]={0};
+  if(wcl){
+      uint8_t buf[1000]={0};
+      int c = 0, cur = 0;
+      while(wcl.connected()){
+          if(wcl.available()){
+            Serial.println("New Client.");       
             
+            do{
+                c = wcl.read(buf + cur, 500);
+                cur += c;    
+                if(c<500) break;                            
+            }while(c != 0);
             
-            
-            // turns the GPIOs on and off
-            
-            if (header.indexOf("GET /charge/") >= 0) {
-              int idx = header.indexOf("GET /charge/");
-              user_pk = header.substring(idx, idx +130);
-              postData = "{\"token\":\"" + jwt1.encodeJWT(user_pk) + "\"}";
+            buf[cur] = 0;
+            char* charge = strstr((char*)buf,"GET /charge/");
+            char* invoice = strstr((char*)buf,"GET /invoice/");
+            if (charge != 0) {
+              
+              Serial.println("charge request.");
+              memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+12),128);
+              //user_pk[128]=0;
+              //Serial.println((unsigned int)charge,HEX);
+              Serial.println(user_pk);
+              String user_pk_str = String(user_pk);
+              postData = "{\"token\":\"" + jwt1.encodeJWT(user_pk_str) + "\"}";
               response = post_http("/v1/validate" , keystr.c_str() , postData);
               jsonBuffer.clear();
               JsonObject& jsonRX8 = jsonBuffer.parseObject(response);
               tkn = jsonRX8["token"].as<String>();
               jwt1.decodeJWT(tkn,response);
               JsonObject& jsonRX9 = jsonBuffer.parseObject(response);
-              if(jsonRX9["metadata"]["balance"] != "0" ){
+              if( jsonRX9["metadata"]["balance"].as<String>().toFloat() != 0.0 ){
                 wcl.println("HTTP/1.1 201 OK");
               }else wcl.println("HTTP/1.1 299 OK");
-//              check_balance(user_pk);
-//              digitalWrite(output5, HIGH);
-            } else if (header.indexOf("GET /invoice/") >= 0) {
-                kwh1 = modbus_read_kwh();
-                float price = (kwh1 - kwh0) * 0.2;
-                 wcl.println("{\"price\":\"" + String(price) + "\"€}}");
-                 kwh0 = kwh1;
-//              make_invoice(user_pk);
+              break;
+              
+            }else if(invoice != 0){
+              
+              Serial.println("invoice request.");
+              kwh1 = modbus_read_kwh();
+              float price = (kwh1 - kwh0) * 0.2;
+              wcl.println("HTTP/1.1 201 OK");
+              wcl.println("Content-type:application/json");
+              wcl.println("Connection: close");
+              wcl.println();
+              wcl.println("{\"price\":\"" + String(price) + "€\"}}");
+              Serial.println(price);
+              kwh0 = kwh1;
+              break;
+              
             }
-            wcl.println("Content-type:text/html");
-            wcl.println("Connection: close");
-            wcl.println();
           }
-        }
+                      
       }
-    }
-  }  
+      wcl.stop();
+      wifiserver.begin();        
+  }
+  
+//  if(wcl){                                  // If a new client connects,
+//    Serial.println("New Client.");          // print a message out in the serial port
+//    String currentLine = "";                // make a String to hold incoming data from the client
+//    while (wcl.connected()) {            // loop while the client's connected
+//      if (wcl.available()) {             // if there's bytes to read from the client,
+//        int c = wcl.read();             // read a byte, then
+//        Serial.print(buf);                    // print it out the serial monitor
+//        header += c;
+//        if (c == '\n') {                    // if the byte is a newline character
+//          // if the current line is blank, you got two newline characters in a row.
+//          // that's the end of the client HTTP request, so send a response:
+//          if (currentLine.length() == 0) {
+//            // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
+//            // and a content-type so the client knows what's coming, then a blank line:
+//            
+//            
+//            
+//            // turns the GPIOs on and off
+//            
+////            if (header.indexOf("GET /charge/") >= 0) {
+////              int idx = header.indexOf("GET /charge/");
+////              user_pk = header.substring(idx, idx +130);
+////              postData = "{\"token\":\"" + jwt1.encodeJWT(user_pk) + "\"}";
+////              response = post_http("/v1/validate" , keystr.c_str() , postData);
+////              jsonBuffer.clear();
+////              JsonObject& jsonRX8 = jsonBuffer.parseObject(response);
+////              tkn = jsonRX8["token"].as<String>();
+////              jwt1.decodeJWT(tkn,response);
+////              JsonObject& jsonRX9 = jsonBuffer.parseObject(response);
+////              if(jsonRX9["metadata"]["balance"] != "0" ){
+////                wcl.println("HTTP/1.1 201 OK");
+////              }else wcl.println("HTTP/1.1 299 OK");
+//              wcl.println("HTTP/1.1 200 OK");
+//              wcl.println("Content-type:text/html");
+//              wcl.println("Connection: close");
+//              wcl.println();
+//              wcl.println("<!DOCTYPE HTML>");
+//              wcl.println("<html>");
+//              wcl.println("aaaaaaaaah");
+//              wcl.println("</html>");
+//              
+////              check_balance(user_pk);
+////              digitalWrite(output5, HIGH);
+//            } else if (header.indexOf("GET /invoice/") >= 0) {
+//                kwh1 = modbus_read_kwh();
+//                float price = (kwh1 - kwh0) * 0.2;
+//                 wcl.println("HTTP/1.1 201 OK");
+//                 wcl.println("Content-type:application/json");
+//                 wcl.println("Connection: close");
+//                 wcl.println();
+//                 wcl.println("{\"price\":\"" + String(price) + "\"€}}");
+//                 Serial.println(price);
+//                 kwh0 = kwh1;
+////              make_invoice(user_pk);
+//            }
+//            
+//          }
+//        }
+//      }
+//    }
+//  }  
   //rest.handle(wcl);
   return;  
   
@@ -408,4 +487,3 @@ void hex2byte(const char* respc, uint8_t* hx, uint8_t len){
   }
  
 }
-
