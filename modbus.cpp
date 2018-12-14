@@ -64,11 +64,11 @@ void modbus_init(){
   modbus_configure(BAUD, TIMEOUT, POLLING, RETRY_COUNT, TX_ENABLE_PIN, packet1, 1);
 }
 
-float modbus_read_kwh(){
+double modbus_read_kwh(){
   modbus_update(packet1);
   delay(10);
   modbus_update(packet1);
-  char* message;
+  char message[20]={'\0'};
   unsigned long x = packet->register_array[0];
   x =  (x<<16) | packet->register_array[1] * 1000000;
   unsigned long xx = packet->register_array[2];
@@ -95,8 +95,13 @@ float modbus_read_kwh(){
   
   //sprintf(message, "%d.%d kWh\r\n%d.%d V\r\n%d.%dHz\r\n%d.%d A\r\n" ,  x1 ,   x2 , v1 , v2 , f1 , f2 , i1 , i2 );
   sprintf(message, "%d%d.%04d\0" ,x,  x1 ,   x2);
-  String kwh = String(message);
-  return kwh.toFloat();  
+  String kwh_str = String(message);
+  double kwh = atof(message);
+  
+  Serial.print("kWh:");
+  Serial.println(kwh,4);
+  
+  return kwh;
 }
 
 unsigned int modbus_update(Packet* packets) 

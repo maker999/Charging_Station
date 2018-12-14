@@ -58,6 +58,7 @@ void hex2byte(const char* respc, uint8_t* hx, uint8_t len);
 
 double kwh0,kwh1;
 String postData,response;
+String txpk;
  
 void setup() {
 
@@ -139,11 +140,11 @@ void setup() {
   hex2byte(respc,hx,65);
   uECC_shared_secret( hx+1, pk , secret, uECC_secp256r1());
 
-  ArduinoJWT jwt1 = ArduinoJWT("");
   jwt1.setPSK(byte2string(secret,32));
 
   Serial.print("\n\rsecret: ");
-  Serial.println(byte2string(secret,32)); 
+  Serial.println(byte2string(secret,32));
+
 }
 
 void loop() {
@@ -163,6 +164,7 @@ void loop() {
   
   char user_pk[129]={0};
   if(wcl){
+      Serial.println("New server available.");
       uint8_t buf[1000]={0};
       int c = 0, cur = 0;
       while(wcl.connected()){
@@ -176,39 +178,55 @@ void loop() {
             }while(c != 0);
             
             buf[cur] = 0;
+            Serial.print("wifi buffer:");
+            Serial.println((char*)buf);
+            //char* charge = strstr((char*)buf,"GET /charge/?pubkey=");
             char* charge = strstr((char*)buf,"GET /charge/");
             char* invoice = strstr((char*)buf,"GET /invoice/");
+            
             if (charge != 0) {
               
               Serial.println("charge request.");
-              memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+12),128);
+              //memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+22),128);
+              memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+14),128);
               //user_pk[128]=0;
               //Serial.println((unsigned int)charge,HEX);
               Serial.println(user_pk);
               String user_pk_str = String(user_pk);
-              postData = "{\"token\":\"" + jwt1.encodeJWT(user_pk_str) + "\"}";
+              postData ="{\"public_key\":\"" + user_pk_str + "\"}";
+              postData = "{\"token\":\"" + jwt1.encodeJWT(postData) + "\"}";
               response = post_http("/v1/validate" , keystr.c_str() , postData);
               jsonBuffer.clear();
               JsonObject& jsonRX8 = jsonBuffer.parseObject(response);
               tkn = jsonRX8["token"].as<String>();
               jwt1.decodeJWT(tkn,response);
+              Serial.println(response);
               JsonObject& jsonRX9 = jsonBuffer.parseObject(response);
+              
               if( jsonRX9["metadata"]["balance"].as<String>().toFloat() != 0.0 ){
                 wcl.println("HTTP/1.1 201 OK");
               }else wcl.println("HTTP/1.1 299 OK");
+
+              wcl.println("Content-type:application/json");
+              wcl.println("Connection: close");
+              wcl.println();
+              wcl.println(response);
               break;
               
             }else if(invoice != 0){
               
               Serial.println("invoice request.");
               kwh1 = modbus_read_kwh();
-              float price = (kwh1 - kwh0) * 0.2;
+              Serial.print("diff:");
+              Serial.println(kwh1-kwh0,4);
+              //float price = (kwh1 - kwh0) * 0.2;   //the real price calculator
+              float price = (kwh0) * 0.2;
               wcl.println("HTTP/1.1 201 OK");
               wcl.println("Content-type:application/json");
               wcl.println("Connection: close");
               wcl.println();
-              wcl.println("{\"price\":\"" + String(price) + "€\"}}");
-              Serial.println(price);
+              wcl.println("{\"price\":\"" + String(price) + "€\"}");
+              Serial.println("{\"price\":\"" + String(price) + "€\"}");;
               kwh0 = kwh1;
               break;
               
@@ -219,6 +237,7 @@ void loop() {
       wcl.stop();
       wifiserver.begin();        
   }
+  return;
   
 //  if(wcl){                                  // If a new client connects,
 //    Serial.println("New Client.");          // print a message out in the serial port
@@ -282,7 +301,7 @@ void loop() {
 //    }
 //  }  
   //rest.handle(wcl);
-  return;  
+    
   
 
  //-----------------------------------Get Credentials-------------------------------------------- 
@@ -487,3 +506,4 @@ void hex2byte(const char* respc, uint8_t* hx, uint8_t len){
   }
  
 }
+

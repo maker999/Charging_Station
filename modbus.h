@@ -147,5 +147,5 @@ void modbus_configure(long baud, unsigned int _timeout, unsigned int _polling,
                       
 
 void modbus_init();
-float modbus_read_kwh();
+double modbus_read_kwh();
 #endif
