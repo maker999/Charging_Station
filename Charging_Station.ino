@@ -23,7 +23,7 @@
 
 #include <Wire.h>
 #include <M24SR.h>
-#include "bigchaindb.h"
+//#include "bigchaindb.h"
 
 /*  NFC M24SR Module Conifguration */
 #define I2C2_SCL        PB10
@@ -34,11 +34,31 @@
 #define GPO_PIN         PE4
 #define RF_DISABLE_PIN  PE2
 
+//char serverAddress[] = "middleware.riddleandcode.com";
+char serverAddress[] = "ipdb-eu1.riddleandcode.com";
+int port = 9984;
+
 
 int resp_read(char* response, uint32_t *response_size, uint32_t *header_size);
 String get_http_ext( String path );
 String get_http(String path);
+String byte2string(uint8_t* bytarr, uint8_t len);
+String post_http(const char* path,const char* pubkey,String postData);
+void hex2byte(const char* respc, uint8_t* hx, uint8_t len);
+/*
+extern http_response_t response;
+extern http_request_t request;
 
+String myget( String url)
+{
+  request.hostname = serverAddress;
+  request.path = url;
+  request.port = port;
+  doGetRequest();
+
+  return response.body;
+}
+*/
 TwoWire dev_i2c(I2C2_SDA, I2C2_SCL);
 M24SR nfcTag(M24SR_ADDR, &dev_i2c, NULL, GPO_PIN, RF_DISABLE_PIN);
 /*----------------------------*/
@@ -46,14 +66,14 @@ M24SR nfcTag(M24SR_ADDR, &dev_i2c, NULL, GPO_PIN, RF_DISABLE_PIN);
 ATCAIfaceCfg *gCfg = &cfg_ateccx08a_i2c_default;
 ATCA_STATUS crypino_status = ATCA_GEN_FAIL;
 #endif
-//char serverAddress[] = "middleware.riddleandcode.com";
-char serverAddress[] = "ipdb-eu1.riddleandcode.com";
-int port = 9984;
+
+
 
 
 WiFiClient wificlient;
 WiFiServer wifiserver(80);
 //HttpClient client = HttpClient(wificlient, serverAddress, port);
+
 
 ArduinoJWT jwt1 = ArduinoJWT("");
 
@@ -61,16 +81,11 @@ ArduinoJWT jwt1 = ArduinoJWT("");
 StaticJsonBuffer<2000> jsonBuffer;
 JsonObject& jsonTX = jsonBuffer.createObject();
 
-
 unsigned int reg[10];
 char msg[42];
 uint8_t pk[64]={0};
 uint8_t pubkey[65]={0x04};
 String keystr = "";
-
-String byte2string(uint8_t* bytarr, uint8_t len);
-String post_http(const char* path,const char* pubkey,String postData);
-void hex2byte(const char* respc, uint8_t* hx, uint8_t len);
 
 double kwh0,kwh1;
 String postData,response;
@@ -158,14 +173,12 @@ void loop() {
             buf[cur] = 0;
             Serial.print("wifi buffer:");
             Serial.println((char*)buf);
-            //char* charge = strstr((char*)buf,"GET /charge/?pubkey=");
             char* charge = strstr((char*)buf,"GET /charge/");
             char* invoice = strstr((char*)buf,"GET /invoice/");
 
             if (charge != 0) {
               postData = "";
               Serial.println("output request.");
-              //memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+22),128);
               memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+20),44);
               //user_pk[128]=0;
               //Serial.println((unsigned int)charge,HEX);
@@ -173,31 +186,28 @@ void loop() {
               String user_pk_str = String(user_pk);
               response = get_http(String("/api/v1/outputs?public_key=") + user_pk_str);
               jsonBuffer.clear();
-              //String obj("{resp=");
-              //obj = obj + response + String("}");
               JsonArray& jsonRX8 = jsonBuffer.parseArray(response);
               jsonRX8.prettyPrintTo(Serial);
-              Serial.println();
+
+
               String tx_id = jsonRX8[jsonRX8.size()-1]["transaction_id"].as<String>();
+
               Serial.print("transaction request. ");
               Serial.println(tx_id);
-              //response = get_http(String("/api/v1/transactions/")+ tx_id);
-              int response_size = 0;
-              int header_size = 0;
-              //int my_ret = getResponse("/api/v1/transactions/cfd0a86ea21ff96e48aa5ebd3f5c802a6c98555a31e30580b70ce212899d02bc", buf, &response_size, &header_size);
 
               response = get_http( String("/api/v1/transactions/") + tx_id);
               //response = "{\"inputs\": [{\"owners_before\": [\"CJL6QoHLS9vmWfk5zRi7qQc6WrEmp2Jh8UpgWMaxHctK\"], \"fulfills\": {\"transaction_id\": \"e957a9d02cfdf2f090509e3385e7ebf7021a3c24e95d3fdb18ac3df4815c1225\", \"output_index\": 0}, \"fulfillment\": \"pGSAIKfhBM8pUHpggKBq4vyB0khGLVwXnrbcNZO_RL3VQBCcgUBfqicpyEjg8fQA6EnUDH5gbLvNfjAKPEbtCA_01Winyu_dmcrkSXbdD1lGW95SkE_22dcS9LRniUQIhbrG3DoI\"}], \"outputs\": [{\"public_keys\": [\"CJL6QoHLS9vmWfk5zRi7qQc6WrEmp2Jh8UpgWMaxHctK\"], \"condition\": {\"details\": {\"type\": \"ed25519-sha-256\", \"public_key\": \"CJL6QoHLS9vmWfk5zRi7qQc6WrEmp2Jh8UpgWMaxHctK\"}, \"uri\": \"ni:///sha-256;9ZZF8a5pvCL1Ln-tY0CdL2z-Z5d59NBy1-0Y8bJAa3Q?fpt=ed25519-sha-256&cost=131072\"}, \"amount\": \"999960\"}, {\"public_keys\": [\"FL2KzJwdYqZLLXBTTgAjU2B54hGs2AWhfEC7mnN73iSC\"], \"condition\": {\"details\": {\"type\": \"ed25519-sha-256\", \"public_key\": \"FL2KzJwdYqZLLXBTTgAjU2B54hGs2AWhfEC7mnN73iSC\"}, \"uri\": \"ni:///sha-256;NuV7DENpEHgFBdxWssuNNW_nlo9B0odIkgKse-hggIk?fpt=ed25519-sha-256&cost=131072\"}, \"amount\": \"20\"}], \"operation\": \"TRANSFER\", \"metadata\": {\"what2\": \"Transferring to bob...\"}, \"asset\": {\"id\": \"e957a9d02cfdf2f090509e3385e7ebf7021a3c24e95d3fdb18ac3df4815c1225\"}, \"version\": \"2.0\", \"id\": \"cfd0a86ea21ff96e48aa5ebd3f5c802a6c98555a31e30580b70ce212899d02bc\"}\r\n";
-              //response = String((const char*)buf);
+
               response.trim();
-              //Serial.println(my_ret);
+
               Serial.println(response);
               jsonBuffer.clear();
               JsonObject& jsonRX9 = jsonBuffer.parseObject(response);
 
-              //jsonRX9.prettyPrintTo(Serial);
+
               long balance = jsonRX9["outputs"][0]["amount"].as<String>().toInt();
               String output_key= jsonRX9["outputs"][0]["public_keys"][0].as<String>();
+
               Serial.println( output_key == user_pk_str );
               Serial.println( balance );
               String message = "Your balance is too low.";
@@ -245,20 +255,15 @@ void loop() {
 //----------------------------------------------------------------------------------------------------------
 
 
-String get_http(String path){
+String get_http(String path)
+{
   HttpClient client = HttpClient(wificlient, serverAddress, port);
-
   client.get(path.c_str());
-  
-  String response = client.responseBody();
 
-  
-  //Serial.println(response);
+  String response = client.responseBody();
 
   client.stop();
   return response;
-
-
 }
 
 String post_http(const char* path,const char* pubkey,String postData){
