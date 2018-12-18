@@ -32,8 +32,9 @@ M24SR nfcTag(M24SR_ADDR, &dev_i2c, NULL, GPO_PIN, RF_DISABLE_PIN);
 ATCAIfaceCfg *gCfg = &cfg_ateccx08a_i2c_default;
 ATCA_STATUS crypino_status = ATCA_GEN_FAIL;
 
-char serverAddress[] = "middleware.riddleandcode.com";
-int port = 8000;
+//char serverAddress[] = "middleware.riddleandcode.com";
+char serverAddress[] = "ipdb-eu1.riddleandcode.com";
+int port = 9984;
 
 
 WiFiClient wificlient;
@@ -59,10 +60,10 @@ void hex2byte(const char* respc, uint8_t* hx, uint8_t len);
 double kwh0,kwh1;
 String postData,response;
 String txpk;
- 
+
 void setup() {
 
-  
+
   // initialize serial communication:
   Serial.begin(115200);
   while (!Serial) {
@@ -72,19 +73,19 @@ void setup() {
 //  rest.set_id("008");
 //  rest.set_name("dapper_drake");
   //rest.function("balance_check",blc_check );
-  
+
   Serial.println("\n\r-----------------------------------------\n\rStart");
-  
+
   // Intialize NFC module
   dev_i2c.begin();
   if(nfcTag.begin(NULL) != 0) Serial1.println("NFC Init failed!");
   else Serial1.println("NFC init successful.");
-  
-  crypino_status = atcab_init(gCfg);  
-  
-  modbus_init(); 
+
+  crypino_status = atcab_init(gCfg);
+
+  modbus_init();
   kwh0 = modbus_read_kwh();
-  
+
   Serial.println(kwh0);
 
 //  uint8_t i = 0;
@@ -93,36 +94,36 @@ void setup() {
   }while(pk[13]==0);      //while(crypino_status != ATCA_SUCCESS);
 
   Serial.println("secure element:");
-  
-  String pubkeystr = byte2string(pk,64); 
-  Serial.println(pubkeystr);  
-  
+
+  String pubkeystr = byte2string(pk,64);
+  Serial.println(pubkeystr);
+
   uECC_compute_public_key(pk, pubkey+1 , uECC_secp256r1() );
-   
+
   keystr = byte2string(pubkey,65);
-  
+
   String ip = wifi_init();
-  
-  
+
+
   Serial.print("-----my pubkey computed:");
   Serial.println(keystr);
   Serial.print("IP Address:");
   Serial.println(ip);
   String nfc_text = keystr + "," + ip;
-  if(nfcTag.writeTxt(nfc_text.c_str()) == false) Serial1.println("NFC Write Failed!");  
-  else Serial.println("Pubkey is written on the NFC"); 
-  
+  if(nfcTag.writeTxt(nfc_text.c_str()) == false) Serial1.println("NFC Write Failed!");
+  else Serial.println("Pubkey is written on the NFC");
+
   Serial.println("-----");
-  
-  
-  jsonTX["public_key"]= keystr;  
- 
-  jsonTX.printTo(postData); 
- 
+
+/*
+  jsonTX["public_key"]= keystr;
+
+  jsonTX.printTo(postData);
+
   response = post_http("/v1/key-exchange", 0 , postData.c_str() );
 
   JsonObject& jsonRX = jsonBuffer.parseObject( response );
-  
+
   Serial.println("----server's pubkey is received:");
 //  jsonRX.prettyPrintTo(Serial);
 
@@ -130,8 +131,8 @@ void setup() {
 
   const char* respc = jsonRX["data"]["public_key"];
 
-  
-  
+
+
   uint8_t hx[65]={0x04};
   uint8_t secret[32]={0};
 
@@ -144,8 +145,41 @@ void setup() {
 
   Serial.print("\n\rsecret: ");
   Serial.println(byte2string(secret,32));
-
+*/
+  wifiserver.begin();
 }
+/*
+void ChargeRequestFathomhash()
+{
+  Serial.println("charge request.");
+  //memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+22),128);
+  memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+14),128);
+  //user_pk[128]=0;
+  //Serial.println((unsigned int)charge,HEX);
+  Serial.println(user_pk);
+  String user_pk_str = String(user_pk);
+  //postData ="{\"public_key\":\"" + user_pk_str + "\"}";
+  postData ="{\"public_key\":\"CJL6QoHLS9vmWfk5zRi7qQc6WrEmp2Jh8UpgWMaxHctK\"}";
+  //postData = "{\"token\":\"" + jwt1.encodeJWT(postData) + "\"}";
+  response = post_http("/api/v1/outputs" , NULsL , postData);
+  jsonBuffer.clear();
+  JsonObject& jsonRX8 = jsonBuffer.parseObject(response);
+  //tkn = jsonRX8["token"].as<String>();
+  jwt1.decodeJWT(tkn,response);
+  Serial.println(response);
+  JsonObject& jsonRX9 = jsonBuffer.parseObject(response);
+
+  if( jsonRX9["metadata"]["balance"].as<String>().toFloat() != 0.0 ){
+    wcl.println("HTTP/1.1 201 OK");
+  }else wcl.println("HTTP/1.1 299 OK");
+
+  wcl.println("Content-type:application/json");
+  wcl.println("Connection: close");
+  wcl.println();
+  wcl.println(response);
+  break;
+}
+*/
 
 void loop() {
 
@@ -153,57 +187,62 @@ void loop() {
 //  nfcTag.readTxt(text_read);
 //  Serial.print("Message content: ");
 //  Serial.println(text_read);
-//  
-//  
+//
+//
 //  delay(1000);
 //  return;
 
   //---------------------------------------------------------------------------------------
   String tkn;
+
   WiFiClient wcl = wifiserver.available();       // listen for incoming clients
-  
+
   char user_pk[129]={0};
   if(wcl){
       Serial.println("New server available.");
-      uint8_t buf[1000]={0};
+      uint8_t buf[10000]={0};
       int c = 0, cur = 0;
       while(wcl.connected()){
           if(wcl.available()){
-            Serial.println("New Client.");       
-            
+            Serial.println("New Client.");
+
             do{
                 c = wcl.read(buf + cur, 500);
-                cur += c;    
-                if(c<500) break;                            
+                cur += c;
+                if(c<500) break;
             }while(c != 0);
-            
+
             buf[cur] = 0;
             Serial.print("wifi buffer:");
             Serial.println((char*)buf);
             //char* charge = strstr((char*)buf,"GET /charge/?pubkey=");
             char* charge = strstr((char*)buf,"GET /charge/");
             char* invoice = strstr((char*)buf,"GET /invoice/");
-            
+
             if (charge != 0) {
-              
-              Serial.println("charge request.");
+              postData = "";
+              Serial.println("output request.");
               //memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+22),128);
-              memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+14),128);
+              memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+20),44);
               //user_pk[128]=0;
               //Serial.println((unsigned int)charge,HEX);
               Serial.println(user_pk);
               String user_pk_str = String(user_pk);
-              postData ="{\"public_key\":\"" + user_pk_str + "\"}";
-              postData = "{\"token\":\"" + jwt1.encodeJWT(postData) + "\"}";
-              response = post_http("/v1/validate" , keystr.c_str() , postData);
+              response = get_http(String("/api/v1/outputs?public_key=") + user_pk_str);
               jsonBuffer.clear();
-              JsonObject& jsonRX8 = jsonBuffer.parseObject(response);
-              tkn = jsonRX8["token"].as<String>();
-              jwt1.decodeJWT(tkn,response);
+              String obj("{resp=");
+              obj = obj + response + String("}");
+              JsonObject& jsonRX8 = jsonBuffer.parseObject(obj);
+              jsonRX8.prettyPrintTo(Serial);
+              //String tx_id = jsonRX8"transaction_id"].as<String>();
+              Serial.print("transaction request. ");
+              //Serial.println(  tx_id);
+              //response = get_http(String("/api/v1/transactions/")+ tx_id);
+              //response = get_http("/api/v1/transactions/cfd0a86ea21ff96e48aa5ebd3f5c802a6c98555a31e30580b70ce212899d02bc");
               Serial.println(response);
+              jsonBuffer.clear();
               JsonObject& jsonRX9 = jsonBuffer.parseObject(response);
-              
-              if( jsonRX9["metadata"]["balance"].as<String>().toFloat() != 0.0 ){
+              if( jsonRX9["outputs"]["amount"].as<String>().toFloat() > 10 ){
                 wcl.println("HTTP/1.1 201 OK");
               }else wcl.println("HTTP/1.1 299 OK");
 
@@ -212,9 +251,9 @@ void loop() {
               wcl.println();
               wcl.println(response);
               break;
-              
+
             }else if(invoice != 0){
-              
+
               Serial.println("invoice request.");
               kwh1 = modbus_read_kwh();
               Serial.print("diff:");
@@ -229,16 +268,16 @@ void loop() {
               Serial.println("{\"price\":\"" + String(price) + "€\"}");;
               kwh0 = kwh1;
               break;
-              
+
             }
           }
-                      
+
       }
       wcl.stop();
-      wifiserver.begin();        
+      wifiserver.begin();
   }
   return;
-  
+
 //  if(wcl){                                  // If a new client connects,
 //    Serial.println("New Client.");          // print a message out in the serial port
 //    String currentLine = "";                // make a String to hold incoming data from the client
@@ -253,11 +292,11 @@ void loop() {
 //          if (currentLine.length() == 0) {
 //            // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
 //            // and a content-type so the client knows what's coming, then a blank line:
-//            
-//            
-//            
+//
+//
+//
 //            // turns the GPIOs on and off
-//            
+//
 ////            if (header.indexOf("GET /charge/") >= 0) {
 ////              int idx = header.indexOf("GET /charge/");
 ////              user_pk = header.substring(idx, idx +130);
@@ -279,7 +318,7 @@ void loop() {
 //              wcl.println("<html>");
 //              wcl.println("aaaaaaaaah");
 //              wcl.println("</html>");
-//              
+//
 ////              check_balance(user_pk);
 ////              digitalWrite(output5, HIGH);
 //            } else if (header.indexOf("GET /invoice/") >= 0) {
@@ -294,29 +333,29 @@ void loop() {
 //                 kwh0 = kwh1;
 ////              make_invoice(user_pk);
 //            }
-//            
+//
 //          }
 //        }
 //      }
 //    }
-//  }  
+//  }
   //rest.handle(wcl);
-    
-  
 
- //-----------------------------------Get Credentials-------------------------------------------- 
+
+
+ //-----------------------------------Get Credentials--------------------------------------------
   String str5 = "{}";
   postData = "{\"token\":\"" + jwt1.encodeJWT(str5) + "\"}";
 
-  
+
   response = post_http("/v1/get-credentials", keystr.c_str() , postData);
-  
-  
+
+
   jsonBuffer.clear();
   JsonObject& jsonRX1 = jsonBuffer.parseObject(response.c_str());
   tkn= jsonRX1["token"].as<String>();
   jwt1.decodeJWT(tkn,response);
-  
+
 
   jsonBuffer.clear();
   JsonObject& jsonRX2 = jsonBuffer.parseObject(response.c_str());
@@ -326,7 +365,7 @@ void loop() {
   jsonRX2.prettyPrintTo(Serial);
 
 //-----------------------------------Provision--------------------------------------------
-  
+
   String txpk = jsonRX2["data"]["public_key"].as<String>();
 
   postData = "{\"public_key\": \"" + txpk + "\", \"metadata\": {\"Kilowatthours\":\"" + String(msg) + "\"}}";
@@ -334,10 +373,10 @@ void loop() {
   Serial.print("postData: ");
   Serial.println(postData);
 
-  
-  
+
+
   postData = "{\"token\":\"" + jwt1.encodeJWT(postData) + "\"}";
-  
+
 
   response = post_http("/v1/provision" , keystr.c_str() , postData);
   jsonBuffer.clear();
@@ -352,7 +391,7 @@ void loop() {
   jsonRX5.prettyPrintTo(Serial);
 
 
-//-----------------------------------Validation--------------------------------------------  
+//-----------------------------------Validation--------------------------------------------
   postData ="{\"public_key\":\"" + txpk + "\"}";
   postData = "{\"token\":\"" + jwt1.encodeJWT(postData) + "\"}";
   response = post_http("/v1/validate" , keystr.c_str() , postData);
@@ -367,9 +406,9 @@ void loop() {
 
 
 
-  
+
   delay(5000);
-  
+
 }
 
 
@@ -377,31 +416,44 @@ void loop() {
 //----------------------------------------------------------------------------------------------------------
 
 
+String get_http(String path){
+  HttpClient client = HttpClient(wificlient, serverAddress, port);
+
+  client.get(path.c_str());
+  String response = client.responseBody();
+  Serial.println(response);
+
+  client.stop();
+  return response;
+
+
+}
+
 String post_http(const char* path,const char* pubkey,String postData){
   HttpClient client = HttpClient(wificlient, serverAddress, port);
   client.beginRequest();
   client.post(path);
-  client.sendHeader("Content-Type", "application/json");  
+  client.sendHeader("Content-Type", "application/json");
   client.sendHeader("Content-Length", postData.length() );
   if(pubkey != NULL ) client.sendHeader("X-Public-Key", pubkey );
   client.print(postData);
   client.endRequest();
 
-   
-  char buf[1000]={0};
+  char buf[10000]={0};
   uint32_t response_size=0;
   uint32_t header_size=0;
+
   resp_read(buf, &response_size, &header_size);
   //Serial.print("buf=");
   //Serial.println(buf);
-  
+
   String response;
   for(int i=0; i<response_size; i++){
     response.concat(buf[i+header_size]);
   }
   client.stop();
   return response;
-  
+
 }
 
 int resp_read(char* response, uint32_t *response_size, uint32_t *header_size){
@@ -411,15 +463,15 @@ int resp_read(char* response, uint32_t *response_size, uint32_t *header_size){
   do
     {
         c = wificlient.read(buf + cur, 100);
-        cur += c;    
-        
+        cur += c;
+
 //        Serial.print("cur = ");
 //        Serial.println(cur);
         if(c<100) break;
-                    
+
     }while(c != 0);
 
-    
+
     buf[cur] = 0;
 
 //    wificlient.flush();
@@ -460,34 +512,35 @@ int resp_read(char* response, uint32_t *response_size, uint32_t *header_size){
     *response_size = length - cur;
     *header_size = cur;
 
- 
+
     return 0;
-    
+
 }
 
 void post_http2(const char* path,const char* pubkey,String postData){
   HttpClient client = HttpClient(wificlient, serverAddress, port);
   client.beginRequest();
   client.post(path);
-  client.sendHeader("Content-Type", "application/json");  
+  client.sendHeader("Content-Type", "application/json");
   client.sendHeader("Content-Length", postData.length() );
   if(pubkey != NULL ) client.sendHeader("X-Public-Key", pubkey );
   client.print(postData);
   client.endRequest();
-  //client.stop(); 
+  //client.stop();
   //Serial.println("waiting for response2");
-  
+
 }
+
 
 
 String byte2string(uint8_t* bytarr, uint8_t len){
   String str="";
-  for (int i = 0; i < len; i++){ 
+  for (int i = 0; i < len; i++){
      static char tmp[2] = {};
      sprintf(tmp, "%02X", bytarr[i]);
-     str += tmp;    
+     str += tmp;
   }
-  return str;  
+  return str;
 }
 
 void hex2byte(const char* respc, uint8_t* hx, uint8_t len){
@@ -502,8 +555,8 @@ void hex2byte(const char* respc, uint8_t* hx, uint8_t len){
       if(respc[i] > 64) tmp1=9+respc[i]-64 ;
       else if(respc[i] < 58) tmp1=respc[i]-48;
       hx[i/2]= tmp2*16 + tmp1;
-    }    
+    }
   }
- 
+
 }
 
