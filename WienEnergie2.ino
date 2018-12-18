@@ -4,34 +4,48 @@
 #include <WiFiServerST.h>
 #include <WiFiClientST.h>
 #include <ArduinoHttpClient.h>
-//#include <HttpClient.h>
-//#include <aREST.h>
-//aREST rest = aREST();
+
+//#define WITH_MODBUS
+//#define SECURE_ELEMENT
 
 #include <ArduinoJson.h>
-
 #include "wifi.h"
+
+#ifdef SECURE_ELEMENT
 #include "crypino.h"
+#endif
+
+#ifdef WITH_MODBUS
 #include "modbus.h"
+#endif
+
 #include "b64.h"
 
 #include <Wire.h>
 #include <M24SR.h>
+#include "bigchaindb.h"
 
 /*  NFC M24SR Module Conifguration */
 #define I2C2_SCL        PB10
 #define I2C2_SDA        PB11
+
+
 #define M24SR_ADDR      0xAC
 #define GPO_PIN         PE4
 #define RF_DISABLE_PIN  PE2
 
+
+int resp_read(char* response, uint32_t *response_size, uint32_t *header_size);
+String get_http_ext( String path );
+String get_http(String path);
+
 TwoWire dev_i2c(I2C2_SDA, I2C2_SCL);
 M24SR nfcTag(M24SR_ADDR, &dev_i2c, NULL, GPO_PIN, RF_DISABLE_PIN);
 /*----------------------------*/
-
+#ifdef SECURE_ELEMENT
 ATCAIfaceCfg *gCfg = &cfg_ateccx08a_i2c_default;
 ATCA_STATUS crypino_status = ATCA_GEN_FAIL;
-
+#endif
 //char serverAddress[] = "middleware.riddleandcode.com";
 char serverAddress[] = "ipdb-eu1.riddleandcode.com";
 int port = 9984;
@@ -76,19 +90,13 @@ void setup() {
   //rest.function("balance_check",blc_check );
 
   Serial.println("\n\r-----------------------------------------\n\rStart");
-
+#ifdef SECURE_ELEMENT
   // Intialize NFC module
   dev_i2c.begin();
   if(nfcTag.begin(NULL) != 0) Serial1.println("NFC Init failed!");
   else Serial1.println("NFC init successful.");
 
   crypino_status = atcab_init(gCfg);
-
-  modbus_init();
-  
-  while(kwh0 == 0.0) kwh0 = modbus_read_kwh();
-
-  Serial.println(kwh0);
 
 //  uint8_t i = 0;
   do{
@@ -103,12 +111,20 @@ void setup() {
   uECC_compute_public_key(pk, pubkey+1 , uECC_secp256r1() );
 
   keystr = byte2string(pubkey,65);
+  Serial.print("-----my pubkey computed:");
+  Serial.println(keystr);
+  #endif
+#ifdef WITH_MODBUS
+  modbus_init();
+
+  while(kwh0 == 0.0) kwh0 = modbus_read_kwh();
+
+  Serial.println(kwh0);
+#endif
+
 
   String ip = wifi_init();
 
-
-  Serial.print("-----my pubkey computed:");
-  Serial.println(keystr);
   Serial.print("IP Address:");
   Serial.println(ip);
   String nfc_text = keystr + "," + ip;
@@ -116,85 +132,10 @@ void setup() {
   else Serial.println("Pubkey is written on the NFC");
 
   Serial.println("-----");
-
-/*
-  jsonTX["public_key"]= keystr;
-
-  jsonTX.printTo(postData);
-
-  response = post_http("/v1/key-exchange", 0 , postData.c_str() );
-
-  JsonObject& jsonRX = jsonBuffer.parseObject( response );
-
-  Serial.println("----server's pubkey is received:");
-//  jsonRX.prettyPrintTo(Serial);
-
-  Serial.println(jsonRX["data"]["public_key"].as<String>());
-
-  const char* respc = jsonRX["data"]["public_key"];
-
-
-
-  uint8_t hx[65]={0x04};
-  uint8_t secret[32]={0};
-
-//  char resp[174]={0};
-//  response.toCharArray(resp,174);
-  hex2byte(respc,hx,65);
-  uECC_shared_secret( hx+1, pk , secret, uECC_secp256r1());
-
-  jwt1.setPSK(byte2string(secret,32));
-
-  Serial.print("\n\rsecret: ");
-  Serial.println(byte2string(secret,32));
-*/
   wifiserver.begin();
 }
-/*
-void ChargeRequestFathomhash()
-{
-  Serial.println("charge request.");
-  //memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+22),128);
-  memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+14),128);
-  //user_pk[128]=0;
-  //Serial.println((unsigned int)charge,HEX);
-  Serial.println(user_pk);
-  String user_pk_str = String(user_pk);
-  //postData ="{\"public_key\":\"" + user_pk_str + "\"}";
-  postData ="{\"public_key\":\"CJL6QoHLS9vmWfk5zRi7qQc6WrEmp2Jh8UpgWMaxHctK\"}";
-  //postData = "{\"token\":\"" + jwt1.encodeJWT(postData) + "\"}";
-  response = post_http("/api/v1/outputs" , NULsL , postData);
-  jsonBuffer.clear();
-  JsonObject& jsonRX8 = jsonBuffer.parseObject(response);
-  //tkn = jsonRX8["token"].as<String>();
-  jwt1.decodeJWT(tkn,response);
-  Serial.println(response);
-  JsonObject& jsonRX9 = jsonBuffer.parseObject(response);
-
-  if( jsonRX9["metadata"]["balance"].as<String>().toFloat() != 0.0 ){
-    wcl.println("HTTP/1.1 201 OK");
-  }else wcl.println("HTTP/1.1 299 OK");
-
-  wcl.println("Content-type:application/json");
-  wcl.println("Connection: close");
-  wcl.println();
-  wcl.println(response);
-  break;
-}
-*/
 
 void loop() {
-
-//  char text_read[100]={'\0'};
-//  nfcTag.readTxt(text_read);
-//  Serial.print("Message content: ");
-//  Serial.println(text_read);
-//
-//
-//  delay(1000);
-//  return;
-
-  //---------------------------------------------------------------------------------------
   String tkn;
 
   WiFiClient wcl = wifiserver.available();       // listen for incoming clients
@@ -230,7 +171,7 @@ void loop() {
               //Serial.println((unsigned int)charge,HEX);
               Serial.println(user_pk);
               String user_pk_str = String(user_pk);
-              //response = get_http(String("/api/v1/outputs?public_key=") + user_pk_str);
+              response = get_http(String("/api/v1/outputs?public_key=") + user_pk_str);
               jsonBuffer.clear();
               //String obj("{resp=");
               //obj = obj + response + String("}");
@@ -241,27 +182,39 @@ void loop() {
               Serial.print("transaction request. ");
               Serial.println(tx_id);
               //response = get_http(String("/api/v1/transactions/")+ tx_id);
-              response = get_http("/api/v1/transactions/cfd0a86ea21ff96e48aa5ebd3f5c802a6c98555a31e30580b70ce212899d02bc");
+              int response_size = 0;
+              int header_size = 0;
+              //int my_ret = getResponse("/api/v1/transactions/cfd0a86ea21ff96e48aa5ebd3f5c802a6c98555a31e30580b70ce212899d02bc", buf, &response_size, &header_size);
+
+              response = get_http( String("/api/v1/transactions/") + tx_id);
               //response = "{\"inputs\": [{\"owners_before\": [\"CJL6QoHLS9vmWfk5zRi7qQc6WrEmp2Jh8UpgWMaxHctK\"], \"fulfills\": {\"transaction_id\": \"e957a9d02cfdf2f090509e3385e7ebf7021a3c24e95d3fdb18ac3df4815c1225\", \"output_index\": 0}, \"fulfillment\": \"pGSAIKfhBM8pUHpggKBq4vyB0khGLVwXnrbcNZO_RL3VQBCcgUBfqicpyEjg8fQA6EnUDH5gbLvNfjAKPEbtCA_01Winyu_dmcrkSXbdD1lGW95SkE_22dcS9LRniUQIhbrG3DoI\"}], \"outputs\": [{\"public_keys\": [\"CJL6QoHLS9vmWfk5zRi7qQc6WrEmp2Jh8UpgWMaxHctK\"], \"condition\": {\"details\": {\"type\": \"ed25519-sha-256\", \"public_key\": \"CJL6QoHLS9vmWfk5zRi7qQc6WrEmp2Jh8UpgWMaxHctK\"}, \"uri\": \"ni:///sha-256;9ZZF8a5pvCL1Ln-tY0CdL2z-Z5d59NBy1-0Y8bJAa3Q?fpt=ed25519-sha-256&cost=131072\"}, \"amount\": \"999960\"}, {\"public_keys\": [\"FL2KzJwdYqZLLXBTTgAjU2B54hGs2AWhfEC7mnN73iSC\"], \"condition\": {\"details\": {\"type\": \"ed25519-sha-256\", \"public_key\": \"FL2KzJwdYqZLLXBTTgAjU2B54hGs2AWhfEC7mnN73iSC\"}, \"uri\": \"ni:///sha-256;NuV7DENpEHgFBdxWssuNNW_nlo9B0odIkgKse-hggIk?fpt=ed25519-sha-256&cost=131072\"}, \"amount\": \"20\"}], \"operation\": \"TRANSFER\", \"metadata\": {\"what2\": \"Transferring to bob...\"}, \"asset\": {\"id\": \"e957a9d02cfdf2f090509e3385e7ebf7021a3c24e95d3fdb18ac3df4815c1225\"}, \"version\": \"2.0\", \"id\": \"cfd0a86ea21ff96e48aa5ebd3f5c802a6c98555a31e30580b70ce212899d02bc\"}\r\n";
+              //response = String((const char*)buf);
               response.trim();
+              //Serial.println(my_ret);
               Serial.println(response);
               jsonBuffer.clear();
               JsonObject& jsonRX9 = jsonBuffer.parseObject(response);
-              
-              jsonRX9.prettyPrintTo(Serial);
-              if( jsonRX9["outputs"][0]["amount"].as<String>().toInt() > 10 ){
+
+              //jsonRX9.prettyPrintTo(Serial);
+              long balance = jsonRX9["outputs"][0]["amount"].as<String>().toInt();
+              String output_key= jsonRX9["outputs"][0]["public_keys"][0].as<String>();
+              Serial.println( output_key == user_pk_str );
+              Serial.println( balance );
+              String message = "Your balance is too low.";
+              if( output_key == user_pk_str && balance > 10 ){
                 wcl.println("HTTP/1.1 201 OK");
+                message = "Your balance is ok.";
               }else wcl.println("HTTP/1.1 299 OK");
 
               wcl.println("Content-type:application/json");
               wcl.println("Connection: close");
               wcl.println();
-              wcl.println(response);
+              wcl.println(message);
               break;
 
             }else if(invoice != 0){
-
               Serial.println("invoice request.");
+#ifdef WITH_MODBUS
               kwh1 = modbus_read_kwh();
               Serial.print("diff:");
               Serial.println(kwh1-kwh0,4);
@@ -274,6 +227,7 @@ void loop() {
               wcl.println("{\"price\":\"" + String(price) + "€\"}");
               Serial.println("{\"price\":\"" + String(price) + "€\"}");;
               kwh0 = kwh1;
+#endif
               break;
 
             }
