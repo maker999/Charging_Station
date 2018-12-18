@@ -3,15 +3,6 @@
 
 
 
-//#define ECSEM76MID
-//#define ECSEM72
-
-//#undef __BIG_ENDION_MOD_BUS_MOD
-//#ifndef ECSEM76MID
-//#define __BIG_ENDION_MOD_BUS_MOD
-//#endif
-
-
 
 /*
    SimpleModbusMaster allows you to communicate
