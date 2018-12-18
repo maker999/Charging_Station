@@ -43,7 +43,8 @@ WiFiServer wifiserver(80);
 
 ArduinoJWT jwt1 = ArduinoJWT("");
 
-DynamicJsonBuffer jsonBuffer;
+//DynamicJsonBuffer jsonBuffer;
+StaticJsonBuffer<2000> jsonBuffer;
 JsonObject& jsonTX = jsonBuffer.createObject();
 
 
@@ -84,7 +85,8 @@ void setup() {
   crypino_status = atcab_init(gCfg);
 
   modbus_init();
-  kwh0 = modbus_read_kwh();
+  
+  while(kwh0 == 0.0) kwh0 = modbus_read_kwh();
 
   Serial.println(kwh0);
 
@@ -228,21 +230,26 @@ void loop() {
               //Serial.println((unsigned int)charge,HEX);
               Serial.println(user_pk);
               String user_pk_str = String(user_pk);
-              response = get_http(String("/api/v1/outputs?public_key=") + user_pk_str);
+              //response = get_http(String("/api/v1/outputs?public_key=") + user_pk_str);
               jsonBuffer.clear();
-              String obj("{resp=");
-              obj = obj + response + String("}");
-              JsonObject& jsonRX8 = jsonBuffer.parseObject(obj);
+              //String obj("{resp=");
+              //obj = obj + response + String("}");
+              JsonArray& jsonRX8 = jsonBuffer.parseArray(response);
               jsonRX8.prettyPrintTo(Serial);
-              //String tx_id = jsonRX8"transaction_id"].as<String>();
+              Serial.println();
+              String tx_id = jsonRX8[jsonRX8.size()-1]["transaction_id"].as<String>();
               Serial.print("transaction request. ");
-              //Serial.println(  tx_id);
+              Serial.println(tx_id);
               //response = get_http(String("/api/v1/transactions/")+ tx_id);
-              //response = get_http("/api/v1/transactions/cfd0a86ea21ff96e48aa5ebd3f5c802a6c98555a31e30580b70ce212899d02bc");
+              response = get_http("/api/v1/transactions/cfd0a86ea21ff96e48aa5ebd3f5c802a6c98555a31e30580b70ce212899d02bc");
+              //response = "{\"inputs\": [{\"owners_before\": [\"CJL6QoHLS9vmWfk5zRi7qQc6WrEmp2Jh8UpgWMaxHctK\"], \"fulfills\": {\"transaction_id\": \"e957a9d02cfdf2f090509e3385e7ebf7021a3c24e95d3fdb18ac3df4815c1225\", \"output_index\": 0}, \"fulfillment\": \"pGSAIKfhBM8pUHpggKBq4vyB0khGLVwXnrbcNZO_RL3VQBCcgUBfqicpyEjg8fQA6EnUDH5gbLvNfjAKPEbtCA_01Winyu_dmcrkSXbdD1lGW95SkE_22dcS9LRniUQIhbrG3DoI\"}], \"outputs\": [{\"public_keys\": [\"CJL6QoHLS9vmWfk5zRi7qQc6WrEmp2Jh8UpgWMaxHctK\"], \"condition\": {\"details\": {\"type\": \"ed25519-sha-256\", \"public_key\": \"CJL6QoHLS9vmWfk5zRi7qQc6WrEmp2Jh8UpgWMaxHctK\"}, \"uri\": \"ni:///sha-256;9ZZF8a5pvCL1Ln-tY0CdL2z-Z5d59NBy1-0Y8bJAa3Q?fpt=ed25519-sha-256&cost=131072\"}, \"amount\": \"999960\"}, {\"public_keys\": [\"FL2KzJwdYqZLLXBTTgAjU2B54hGs2AWhfEC7mnN73iSC\"], \"condition\": {\"details\": {\"type\": \"ed25519-sha-256\", \"public_key\": \"FL2KzJwdYqZLLXBTTgAjU2B54hGs2AWhfEC7mnN73iSC\"}, \"uri\": \"ni:///sha-256;NuV7DENpEHgFBdxWssuNNW_nlo9B0odIkgKse-hggIk?fpt=ed25519-sha-256&cost=131072\"}, \"amount\": \"20\"}], \"operation\": \"TRANSFER\", \"metadata\": {\"what2\": \"Transferring to bob...\"}, \"asset\": {\"id\": \"e957a9d02cfdf2f090509e3385e7ebf7021a3c24e95d3fdb18ac3df4815c1225\"}, \"version\": \"2.0\", \"id\": \"cfd0a86ea21ff96e48aa5ebd3f5c802a6c98555a31e30580b70ce212899d02bc\"}\r\n";
+              response.trim();
               Serial.println(response);
               jsonBuffer.clear();
               JsonObject& jsonRX9 = jsonBuffer.parseObject(response);
-              if( jsonRX9["outputs"]["amount"].as<String>().toFloat() > 10 ){
+              
+              jsonRX9.prettyPrintTo(Serial);
+              if( jsonRX9["outputs"][0]["amount"].as<String>().toInt() > 10 ){
                 wcl.println("HTTP/1.1 201 OK");
               }else wcl.println("HTTP/1.1 299 OK");
 
@@ -277,138 +284,6 @@ void loop() {
       wifiserver.begin();
   }
   return;
-
-//  if(wcl){                                  // If a new client connects,
-//    Serial.println("New Client.");          // print a message out in the serial port
-//    String currentLine = "";                // make a String to hold incoming data from the client
-//    while (wcl.connected()) {            // loop while the client's connected
-//      if (wcl.available()) {             // if there's bytes to read from the client,
-//        int c = wcl.read();             // read a byte, then
-//        Serial.print(buf);                    // print it out the serial monitor
-//        header += c;
-//        if (c == '\n') {                    // if the byte is a newline character
-//          // if the current line is blank, you got two newline characters in a row.
-//          // that's the end of the client HTTP request, so send a response:
-//          if (currentLine.length() == 0) {
-//            // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
-//            // and a content-type so the client knows what's coming, then a blank line:
-//
-//
-//
-//            // turns the GPIOs on and off
-//
-////            if (header.indexOf("GET /charge/") >= 0) {
-////              int idx = header.indexOf("GET /charge/");
-////              user_pk = header.substring(idx, idx +130);
-////              postData = "{\"token\":\"" + jwt1.encodeJWT(user_pk) + "\"}";
-////              response = post_http("/v1/validate" , keystr.c_str() , postData);
-////              jsonBuffer.clear();
-////              JsonObject& jsonRX8 = jsonBuffer.parseObject(response);
-////              tkn = jsonRX8["token"].as<String>();
-////              jwt1.decodeJWT(tkn,response);
-////              JsonObject& jsonRX9 = jsonBuffer.parseObject(response);
-////              if(jsonRX9["metadata"]["balance"] != "0" ){
-////                wcl.println("HTTP/1.1 201 OK");
-////              }else wcl.println("HTTP/1.1 299 OK");
-//              wcl.println("HTTP/1.1 200 OK");
-//              wcl.println("Content-type:text/html");
-//              wcl.println("Connection: close");
-//              wcl.println();
-//              wcl.println("<!DOCTYPE HTML>");
-//              wcl.println("<html>");
-//              wcl.println("aaaaaaaaah");
-//              wcl.println("</html>");
-//
-////              check_balance(user_pk);
-////              digitalWrite(output5, HIGH);
-//            } else if (header.indexOf("GET /invoice/") >= 0) {
-//                kwh1 = modbus_read_kwh();
-//                float price = (kwh1 - kwh0) * 0.2;
-//                 wcl.println("HTTP/1.1 201 OK");
-//                 wcl.println("Content-type:application/json");
-//                 wcl.println("Connection: close");
-//                 wcl.println();
-//                 wcl.println("{\"price\":\"" + String(price) + "\"€}}");
-//                 Serial.println(price);
-//                 kwh0 = kwh1;
-////              make_invoice(user_pk);
-//            }
-//
-//          }
-//        }
-//      }
-//    }
-//  }
-  //rest.handle(wcl);
-
-
-
- //-----------------------------------Get Credentials--------------------------------------------
-  String str5 = "{}";
-  postData = "{\"token\":\"" + jwt1.encodeJWT(str5) + "\"}";
-
-
-  response = post_http("/v1/get-credentials", keystr.c_str() , postData);
-
-
-  jsonBuffer.clear();
-  JsonObject& jsonRX1 = jsonBuffer.parseObject(response.c_str());
-  tkn= jsonRX1["token"].as<String>();
-  jwt1.decodeJWT(tkn,response);
-
-
-  jsonBuffer.clear();
-  JsonObject& jsonRX2 = jsonBuffer.parseObject(response.c_str());
-  //jsonRX2.prettyPrintTo(Serial);
-  //JsonObject& jsonRX3 = jsonRX2["data"];
-  Serial.println("\n\r---------Get Credentials:");
-  jsonRX2.prettyPrintTo(Serial);
-
-//-----------------------------------Provision--------------------------------------------
-
-  String txpk = jsonRX2["data"]["public_key"].as<String>();
-
-  postData = "{\"public_key\": \"" + txpk + "\", \"metadata\": {\"Kilowatthours\":\"" + String(msg) + "\"}}";
-
-  Serial.print("postData: ");
-  Serial.println(postData);
-
-
-
-  postData = "{\"token\":\"" + jwt1.encodeJWT(postData) + "\"}";
-
-
-  response = post_http("/v1/provision" , keystr.c_str() , postData);
-  jsonBuffer.clear();
-  JsonObject& jsonRX4 = jsonBuffer.parseObject(response);
-  //jsonRX4.prettyPrintTo(Serial);
-  tkn= jsonRX4["token"].as<String>();
-  jwt1.decodeJWT(tkn,response);
-
-  jsonBuffer.clear();
-  JsonObject& jsonRX5 = jsonBuffer.parseObject(response.c_str());
-  Serial.println("\n\r---------Provision:");
-  jsonRX5.prettyPrintTo(Serial);
-
-
-//-----------------------------------Validation--------------------------------------------
-  postData ="{\"public_key\":\"" + txpk + "\"}";
-  postData = "{\"token\":\"" + jwt1.encodeJWT(postData) + "\"}";
-  response = post_http("/v1/validate" , keystr.c_str() , postData);
-  jsonBuffer.clear();
-  JsonObject& jsonRX6 = jsonBuffer.parseObject(response);
-  tkn = jsonRX6["token"].as<String>();
-  jwt1.decodeJWT(tkn,response);
-  JsonObject& jsonRX7 = jsonBuffer.parseObject(response);
-  Serial.println("\n\r---------Validation:");
-  jsonRX7.prettyPrintTo(Serial);
-
-
-
-
-
-  delay(5000);
-
 }
 
 
@@ -420,8 +295,11 @@ String get_http(String path){
   HttpClient client = HttpClient(wificlient, serverAddress, port);
 
   client.get(path.c_str());
+  
   String response = client.responseBody();
-  Serial.println(response);
+
+  
+  //Serial.println(response);
 
   client.stop();
   return response;
@@ -516,21 +394,6 @@ int resp_read(char* response, uint32_t *response_size, uint32_t *header_size){
     return 0;
 
 }
-
-void post_http2(const char* path,const char* pubkey,String postData){
-  HttpClient client = HttpClient(wificlient, serverAddress, port);
-  client.beginRequest();
-  client.post(path);
-  client.sendHeader("Content-Type", "application/json");
-  client.sendHeader("Content-Length", postData.length() );
-  if(pubkey != NULL ) client.sendHeader("X-Public-Key", pubkey );
-  client.print(postData);
-  client.endRequest();
-  //client.stop();
-  //Serial.println("waiting for response2");
-
-}
-
 
 
 String byte2string(uint8_t* bytarr, uint8_t len){

@@ -1,5 +1,10 @@
 #include "modbus.h"
 
+//#define FORMAT (frame[index+1]<<8)|frame[index]     //ECSEM72   for this model uncomment this line 
+#ifndef FORMAT
+#define FORMAT (frame[index]<<8)|frame[index+1]     //ECSEM76MID
+#endif
+
 #define BUFFER_SIZE 128
 
 // modbus specific exceptions
@@ -332,7 +337,7 @@ void check_F3_data(unsigned char buffer)
       //softSerial3.print("BEGINNING: ");
       for (unsigned char i = 0; i< no_of_registers ; i++){   // 
         // start at the 4th element in the recieveFrame and combine the Lo byte 
-        packet->register_array[i] = (frame[index + 1] << 8) | frame[index];  //saeed: I swapped them
+        packet->register_array[i] = FORMAT;  //saeed: I swapped them
         index += 2;
         //softSerial3.print(packet->register_array[i],HEX);
         //softSerial3.print(" ");
