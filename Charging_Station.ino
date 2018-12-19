@@ -6,7 +6,7 @@
 #include <ArduinoHttpClient.h>
 
 //#define WITH_MODBUS
-//#define SECURE_ELEMENT
+#define SECURE_ELEMENT
 
 #include <ArduinoJson.h>
 #include "wifi.h"
@@ -39,12 +39,7 @@ char serverAddress[] = "ipdb-eu1.riddleandcode.com";
 int port = 9984;
 
 
-int resp_read(char* response, uint32_t *response_size, uint32_t *header_size);
-String get_http_ext( String path );
-String get_http(String path);
-String byte2string(uint8_t* bytarr, uint8_t len);
-String post_http(const char* path,const char* pubkey,String postData);
-void hex2byte(const char* respc, uint8_t* hx, uint8_t len);
+
 /*
 extern http_response_t response;
 extern http_request_t request;
@@ -91,6 +86,9 @@ double kwh0,kwh1;
 String postData,response;
 String txpk;
 
+String byte2string(uint8_t* bytarr, uint8_t len);
+void hex2byte(const char* respc, uint8_t* hx, uint8_t len);
+
 void setup() {
 
 
@@ -105,14 +103,13 @@ void setup() {
   //rest.function("balance_check",blc_check );
 
   Serial.println("\n\r-----------------------------------------\n\rStart");
-#ifdef SECURE_ELEMENT
-  // Intialize NFC module
+    // Intialize NFC module
   dev_i2c.begin();
   if(nfcTag.begin(NULL) != 0) Serial1.println("NFC Init failed!");
   else Serial1.println("NFC init successful.");
 
+#ifdef SECURE_ELEMENT
   crypino_status = atcab_init(gCfg);
-
 //  uint8_t i = 0;
   do{
      atcab_get_pubkey(0, pk);
@@ -128,7 +125,7 @@ void setup() {
   keystr = byte2string(pubkey,65);
   Serial.print("-----my pubkey computed:");
   Serial.println(keystr);
-  #endif
+#endif
 #ifdef WITH_MODBUS
   modbus_init();
 
@@ -149,6 +146,12 @@ void setup() {
   Serial.println("-----");
   wifiserver.begin();
 }
+
+int resp_read(char* response, uint32_t *response_size, uint32_t *header_size);
+String get_http_ext( String path );
+String get_http(String path);
+
+String post_http(const char* path,const char* pubkey,String postData);
 
 void loop() {
   String tkn;
@@ -182,6 +185,7 @@ void loop() {
               memcpy((uint8_t*)(user_pk),(uint8_t*)(charge+20),44);
               //user_pk[128]=0;
               //Serial.println((unsigned int)charge,HEX);
+
               Serial.println(user_pk);
               String user_pk_str = String(user_pk);
               response = get_http(String("/api/v1/outputs?public_key=") + user_pk_str);
@@ -208,10 +212,10 @@ void loop() {
               long balance = jsonRX9["outputs"][0]["amount"].as<String>().toInt();
               String output_key= jsonRX9["outputs"][0]["public_keys"][0].as<String>();
 
-              Serial.println( output_key == user_pk_str );
+              //Serial.println( output_key == user_pk_str );
               Serial.println( balance );
               String message = "Your balance is too low.";
-              if( output_key == user_pk_str && balance > 10 ){
+              if(  balance > 10 ){
                 wcl.println("HTTP/1.1 201 OK");
                 message = "Your balance is ok.";
               }else wcl.println("HTTP/1.1 299 OK");
@@ -244,9 +248,11 @@ void loop() {
           }
 
       }
-      wcl.stop();
-      wifiserver.begin();
+//      wcl.stop();
+//      wifiserver.begin();
   }
+  wcl.stop();
+  wifiserver.begin();
   return;
 }
 
