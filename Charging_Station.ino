@@ -282,12 +282,30 @@ void loop() {
 
 String get_http(String path)
 {
-  HttpClient client = HttpClient(wificlient, serverAddress, port);
-  client.get(path.c_str());
+  if(!wificlient.connected()) wificlient.connect(serverAddress, port);
+  wificlient.print("GET ");
+  wificlient.print(path.c_str());
+  wificlient.println(" HTTP/1.1");
+  wificlient.print("Host: ");
+  wificlient.println(serverAddress);
+  wificlient.println("Connection: Close");
+  wificlient.println();
+      
+  char buf[3000]={0};
+  uint32_t response_size=0;
+  uint32_t header_size=0;
 
-  String response = client.responseBody();
+  resp_read(buf, &response_size, &header_size);
+  Serial.print("buf: ");
+  Serial.println(buf);
 
-  client.stop();
+  wificlient.stop();
+
+  String response;
+  for(int i=0; i<response_size; i++){
+    response.concat(buf[i+header_size]);
+  }
+  
   return response;
 }
 
@@ -321,22 +339,30 @@ String post_http(const char* path,const char* pubkey,String postData){
 int resp_read(char* response, uint32_t *response_size, uint32_t *header_size){
   uint8_t *buf = (uint8_t *)response;
   int c = 0, retries = 20, cur = 0, length;
-//  Serial.println(" line417 ");
-  do
+  while (1)
     {
-        c = wificlient.read(buf + cur, 100);
+        c = wificlient.read(buf + cur, 1000);
         cur += c;
 
-//        Serial.print("cur = ");
-//        Serial.println(cur);
-        if(c<100) break;
-
-    }while(c != 0);
-
-
+        if (c == 0)
+        {
+            if (retries-- == 0)
+            {
+                //buf[cur] = 0;
+                break;
+            }
+            else
+            {
+                Serial.println(retries);
+            }
+        }
+        else
+        {
+            retries = 0;
+        }
+    }
     buf[cur] = 0;
-
-//    wificlient.flush();
+    wificlient.flush();
     length = cur;
 
     // Check status
