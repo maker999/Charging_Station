@@ -6,7 +6,7 @@
 #include <ArduinoHttpClient.h>
 
 //#define WITH_MODBUS
-#define SECURE_ELEMENT
+//#define SECURE_ELEMENT
 
 #include <ArduinoJson.h>
 #include "wifi.h"
@@ -76,15 +76,15 @@ ArduinoJWT jwt1 = ArduinoJWT("");
 StaticJsonBuffer<2000> jsonBuffer;
 JsonObject& jsonTX = jsonBuffer.createObject();
 
-unsigned int reg[10];
-char msg[42];
+unsigned int reg[10]={0};
+char msg[42]={0};
 uint8_t pk[64]={0};
 uint8_t pubkey[65]={0x04};
 String keystr = "";
 
 double kwh0,kwh1;
-String postData,response;
-String txpk;
+String postData = "",response = "";
+String txpk = "";
 
 String byte2string(uint8_t* bytarr, uint8_t len);
 void hex2byte(const char* respc, uint8_t* hx, uint8_t len);
@@ -103,6 +103,7 @@ void setup() {
   //rest.function("balance_check",blc_check );
 
   Serial.println("\n\r-----------------------------------------\n\rStart");
+
     // Intialize NFC module
   dev_i2c.begin();
   if(nfcTag.begin(NULL) != 0) Serial1.println("NFC Init failed!");
@@ -214,34 +215,52 @@ void loop() {
 
               //Serial.println( output_key == user_pk_str );
               Serial.println( balance );
+              String status = "299";
               String message = "Your balance is too low.";
               if(  balance > 10 ){
                 wcl.println("HTTP/1.1 201 OK");
                 message = "Your balance is ok.";
+                status = "201";
               }else wcl.println("HTTP/1.1 299 OK");
 
               wcl.println("Content-type:application/json");
               wcl.println("Connection: close");
               wcl.println();
-              wcl.println(message);
+              String pre("{ \"status\":\"");
+              String message_tag("\",\"message\":\"");
+              String suffix("\"}\"");
+              Serial.println(pre + status + message_tag + message + suffix );
+              wcl.println( pre + status + message_tag + message + suffix );
+              //wcl.println("{ \"status\":\"201\", \"message\": \"Your balance is ok.\", \"data\": \"Your balance is ok.\"}");
               break;
 
             }else if(invoice != 0){
               Serial.println("invoice request.");
+              float price = 10.0;
 #ifdef WITH_MODBUS
               kwh1 = modbus_read_kwh();
               Serial.print("diff:");
               Serial.println(kwh1-kwh0,4);
               //float price = (kwh1 - kwh0) * 0.2;   //the real price calculator
               float price = (kwh0) * 0.2;
+              kwh0 = kwh1;
+#endif
+
               wcl.println("HTTP/1.1 201 OK");
               wcl.println("Content-type:application/json");
               wcl.println("Connection: close");
               wcl.println();
-              wcl.println("{\"price\":\"" + String(price) + "€\"}");
+              String status = "201";
+              String pre("{ \"status\":\"");
+              String data_tag("\",\"data\":");
+              String suffix("}");
+              String price_obj = "{\"price\":\"" + String(price) + "\"}";
+              Serial.println(pre + status + data_tag + price_obj + suffix );
+              wcl.println( pre + status + data_tag + price_obj + suffix );
+              //wcl.println("{\"price\":\"" + String(price) + "€\"}");
               Serial.println("{\"price\":\"" + String(price) + "€\"}");;
-              kwh0 = kwh1;
-#endif
+
+
               break;
 
             }
