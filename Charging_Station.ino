@@ -242,7 +242,7 @@ void loop() {
               Serial.print("diff:");
               Serial.println(kwh1-kwh0,4);
               //float price = (kwh1 - kwh0) * 0.2;   //the real price calculator
-              //float price = (kwh0) * 0.2 * 100;
+              //float price = (kwh0) * 0.2;
               int price = kwh0 * 100;
               kwh0 = kwh1;
 #endif
