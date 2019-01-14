@@ -5,8 +5,8 @@
 #include <WiFiClientST.h>
 #include <ArduinoHttpClient.h>
 
-//#define WITH_MODBUS
-//#define SECURE_ELEMENT
+#define WITH_MODBUS
+#define SECURE_ELEMENT
 
 #include <ArduinoJson.h>
 #include "wifi.h"
@@ -35,8 +35,8 @@
 #define RF_DISABLE_PIN  PE2
 
 //char serverAddress[] = "middleware.riddleandcode.com";
-char serverAddress[] = "ipdb-eu1.riddleandcode.com";
-int port = 9984;
+char serverAddress[] = "ipdb-eu2.riddleandcode.com";
+int port = 80;
 
 
 
@@ -236,13 +236,14 @@ void loop() {
 
             }else if(invoice != 0){
               Serial.println("invoice request.");
-              float price = 10.0;
+              //float price = 10.0;
 #ifdef WITH_MODBUS
               kwh1 = modbus_read_kwh();
               Serial.print("diff:");
               Serial.println(kwh1-kwh0,4);
               //float price = (kwh1 - kwh0) * 0.2;   //the real price calculator
-              float price = (kwh0) * 0.2;
+              //float price = (kwh0) * 0.2 * 100;
+              int price = kwh0 * 100;
               kwh0 = kwh1;
 #endif
 

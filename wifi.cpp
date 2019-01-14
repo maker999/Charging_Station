@@ -5,11 +5,17 @@
 SPIClass SPI_3(PC12, PC11, PC10);
 WiFiClass WiFi(&SPI_3, PE0, PE1, PE8, PB13);
 
-char ssid[] = "rddl";       // your network SSID (name)
-char pass[] = "code&riddle";    // your network password (use for WPA, or use as key for WEP)
+//char ssid[] = "rddl";       // your network SSID (name)
+//char pass[] = "code&riddle";    // your network password (use for WPA, or use as key for WEP)
 
 //char ssid[] = "UPC-Home";       // your network SSID (name)
 //char pass[] = "Blank#t$100$";    // your network password (use for WPA, or use as key for WEP)
+
+//char ssid[] = "AndroidAP9810";       // your network SSID (name)
+//char pass[] = "6eafd874ac3d";    // your network password (use for WPA, or use as key for WEP)
+
+char ssid[] = "AndroidAP";       // your network SSID (name)
+char pass[] = "hcny2412";    // your network password (use for WPA, or use as key for WEP)
 
 
 int keyIndex = 0;                  // your network key Index number (needed only for WEP)
