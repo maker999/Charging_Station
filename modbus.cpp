@@ -31,7 +31,8 @@ packetPointer packet1 = &packets;
 //packetPointer packet2 = &packets[1];
 //packetPointer packet3 = &packets[2];
 //packetPointer packet4 = &packets[3];
-unsigned int regs[16];
+unsigned int regs[16]={0};
+unsigned int single_reg_1 = 0x1;
 /////////////////////////////////////////////////////////
 
 unsigned char transmission_ready_Flag;
@@ -67,6 +68,19 @@ void modbus_init(){
   packet1->no_of_registers = 4;
   packet1->register_array = &regs[0]; 
   modbus_configure(BAUD, TIMEOUT, POLLING, RETRY_COUNT, TX_ENABLE_PIN, packet1, 1);
+  while(regs[0]==0x0){
+    modbus_update_2();
+    packet1->function = WRITE_HOLDING_REGISTERS;
+    packet1->register_array = &single_reg_1;
+    modbus_update_2();
+    packet1->function = READ_HOLDING_REGISTERS;
+    packet1->register_array = &regs[0];
+    modbus_update_2(); 
+  }
+  Serial.println(regs[0]);
+  packet1->address = 4119;
+  packet1->no_of_registers = 4;
+  packet1->register_array = &regs[1];
 }
 
 double modbus_read_kwh(){
@@ -107,6 +121,22 @@ double modbus_read_kwh(){
   Serial.println(kwh,4);
   
   return kwh;
+}
+
+unsigned int modbus_update_2()
+{
+ 
+  if (transmission_ready_Flag) 
+  {
+    packet = packet1;
+    constructPacket();
+  }
+    
+  checkResponse();
+  
+  check_packet_status();  
+  
+  return 0; 
 }
 
 unsigned int modbus_update(Packet* packets) 
