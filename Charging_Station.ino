@@ -7,6 +7,7 @@
 
 #define WITH_MODBUS
 #define SECURE_ELEMENT
+//#define WITH_SERIAL
 
 #include <ArduinoJson.h>
 #include "wifi.h"
@@ -94,10 +95,11 @@ void setup() {
 
   // initialize serial communication:
   Serial.begin(115200);
+#ifdef WITH_SERIAL
   while (!Serial) {
      // wait for serial port to connect. Needed for native USB port only
   }
-
+#endif
 //  rest.set_id("008");
 //  rest.set_name("dapper_drake");
   //rest.function("balance_check",blc_check );
