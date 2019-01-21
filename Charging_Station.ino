@@ -7,7 +7,7 @@
 
 #define WITH_MODBUS
 #define SECURE_ELEMENT
-//#define WITH_SERIAL
+#define WITH_SERIAL
 
 #include <ArduinoJson.h>
 #include "wifi.h"
@@ -27,13 +27,11 @@
 //#include "bigchaindb.h"
 
 /*  NFC M24SR Module Conifguration */
-#define I2C2_SCL        PB10
-#define I2C2_SDA        PB11
-
-
+#define I2C2_SCL        PB8//PB10
+#define I2C2_SDA        PB9//PB11
 #define M24SR_ADDR      0xAC
-#define GPO_PIN         PE4
-#define RF_DISABLE_PIN  PE2
+#define GPO_PIN         PB4//PE4
+#define RF_DISABLE_PIN  PB2//PE2
 
 //char serverAddress[] = "middleware.riddleandcode.com";
 char serverAddress[] = "ipdb-eu2.riddleandcode.com";
@@ -96,9 +94,7 @@ void setup() {
   // initialize serial communication:
   Serial.begin(115200);
 #ifdef WITH_SERIAL
-  while (!Serial) {
-     // wait for serial port to connect. Needed for native USB port only
-  }
+  while (!Serial); // wait for serial port to connect. Needed for native USB port only
 #endif
 //  rest.set_id("008");
 //  rest.set_name("dapper_drake");
@@ -131,13 +127,12 @@ void setup() {
 #endif
 #ifdef WITH_MODBUS
   modbus_init();
-
-  while(kwh0 == 0.0) kwh0 = modbus_read_kwh();
-
+  kwh0 = modbus_read_kwh();
+  
   Serial.println(kwh0);
 #endif
-
-
+  
+  Serial.print("  ");
   String ip = wifi_init();
 
   Serial.print("IP Address:");
@@ -146,7 +141,7 @@ void setup() {
   if(nfcTag.writeTxt(nfc_text.c_str()) == false) Serial1.println("NFC Write Failed!");
   else Serial.println("Pubkey is written on the NFC");
 
-  Serial.println("-----");
+  
   wifiserver.begin();
 }
 

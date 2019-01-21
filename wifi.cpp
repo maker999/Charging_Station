@@ -11,11 +11,14 @@ WiFiClass WiFi(&SPI_3, PE0, PE1, PE8, PB13);
 //char ssid[] = "UPC-Home";       // your network SSID (name)
 //char pass[] = "Blank#t$100$";    // your network password (use for WPA, or use as key for WEP)
 
-char ssid[] = "AndroidAP9810";       // your network SSID (name)
-char pass[] = "6eafd874ac3d";    // your network password (use for WPA, or use as key for WEP)
+//char ssid[] = "AndroidAP9810";       // your network SSID (name)
+//char pass[] = "6eafd874ac3d";    // your network password (use for WPA, or use as key for WEP)
 
 //char ssid[] = "AndroidAP";       // your network SSID (name)
 //char pass[] = "hcny2412";    // your network password (use for WPA, or use as key for WEP)
+
+char ssid[] = "R3C";
+char pass[] = "code!riddle&";
 
 
 int keyIndex = 0;                  // your network key Index number (needed only for WEP)

@@ -25,9 +25,9 @@
 
 // used to toggle the receive/transmit pin on the driver
 #define TX_ENABLE_PIN 3
-Packet packets; //[4];
-packetPointer packet1 = &packets;
-//packetPointer packet1 = &packets[0];
+Packet packets[2];
+//packetPointer packet1 = &packets;
+packetPointer packet1 = &packets[0];
 //packetPointer packet2 = &packets[1];
 //packetPointer packet3 = &packets[2];
 //packetPointer packet4 = &packets[3];
@@ -64,10 +64,10 @@ unsigned int modbus_update_2();
 void modbus_init(){
   packet1->id = 1;
   packet1->function = READ_HOLDING_REGISTERS;
-  packet1->address = 4119;
+  packet1->address = 4117;
   packet1->no_of_registers = 4;
   packet1->register_array = &regs[0]; 
-  modbus_configure(BAUD, TIMEOUT, POLLING, RETRY_COUNT, TX_ENABLE_PIN, packet1, 1);
+  modbus_configure(BAUD, TIMEOUT, POLLING, RETRY_COUNT, TX_ENABLE_PIN, packets, 1);
   while(regs[0]==0x0){
     modbus_update_2();
     packet1->function = WRITE_HOLDING_REGISTERS;
@@ -75,25 +75,34 @@ void modbus_init(){
     modbus_update_2();
     packet1->function = READ_HOLDING_REGISTERS;
     packet1->register_array = &regs[0];
-    modbus_update_2(); 
+    modbus_update_2();
   }
-  Serial.println(regs[0]);
   packet1->address = 4119;
   packet1->no_of_registers = 4;
   packet1->register_array = &regs[1];
 }
 
 double modbus_read_kwh(){
-  modbus_update(packet1);
-  delay(10);
-  modbus_update(packet1);
+//  modbus_update(packet1);
+//  delay(10);
+  
+  
   char message[20]={'\0'};
-  unsigned long x = packet->register_array[0];
-  x =  (x<<16) | packet->register_array[1] * 1000000;
-  unsigned long xx = packet->register_array[2];
-  xx =  (xx<<16) | packet->register_array[3] ;
-  int x1 = xx/10000;
-  int x2 = xx%10000;
+  unsigned long x = 0 , xx = 0;
+  int x1 = 0;
+  int x2 = 0;
+
+  while(xx == 0 && x == 0){
+    modbus_update_2();
+    x = packet1->register_array[0];
+    x =  (x<<16) | packet1->register_array[1] * 1000000;
+    xx = packet1->register_array[2];
+    xx =  (xx<<16) | packet1->register_array[3] ;
+    x1 = xx/10000;
+    x2 = xx%10000;
+    sprintf(message, "%lu%d.%04d kWh\0" , x , x1,   x2);
+    delay(100);
+  }
   
 //  unsigned long vv = packet2->register_array[2];
 //  vv =  (vv<<16) | packet2->register_array[3] ;
@@ -113,12 +122,12 @@ double modbus_read_kwh(){
 //  int i2 = ii%10000;
   
   //sprintf(message, "%d.%d kWh\r\n%d.%d V\r\n%d.%dHz\r\n%d.%d A\r\n" ,  x1 ,   x2 , v1 , v2 , f1 , f2 , i1 , i2 );
-  sprintf(message, "%d%d.%04d\0" ,x,  x1 ,   x2);
+  
   String kwh_str = String(message);
   double kwh = atof(message);
   
-  Serial.print("kWh:");
-  Serial.println(kwh,4);
+//  Serial.print("kWh:");
+//  Serial.println(kwh,4);
   
   return kwh;
 }
