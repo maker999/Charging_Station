@@ -8,8 +8,8 @@ WiFiClass WiFi(&SPI_3, PE0, PE1, PE8, PB13);
 //char ssid[] = "rddl";       // your network SSID (name)
 //char pass[] = "code&riddle";    // your network password (use for WPA, or use as key for WEP)
 
-//char ssid[] = "UPC-Home";       // your network SSID (name)
-//char pass[] = "Blank#t$100$";    // your network password (use for WPA, or use as key for WEP)
+// char ssid[] = "UPC-Home";       // your network SSID (name)
+// char pass[] = "Blank#t$100$";    // your network password (use for WPA, or use as key for WEP)
 
 //char ssid[] = "AndroidAP9810";       // your network SSID (name)
 //char pass[] = "6eafd874ac3d";    // your network password (use for WPA, or use as key for WEP)
@@ -17,8 +17,11 @@ WiFiClass WiFi(&SPI_3, PE0, PE1, PE8, PB13);
 //char ssid[] = "AndroidAP";       // your network SSID (name)
 //char pass[] = "hcny2412";    // your network password (use for WPA, or use as key for WEP)
 
-char ssid[] = "R3C";
-char pass[] = "code!riddle&";
+//char ssid[] = "R3C2";
+//char pass[] = "code!riddle&";
+
+char ssid[] = "Niob";
+char pass[] = "riddle&code&demo";
 
 
 int keyIndex = 0;                  // your network key Index number (needed only for WEP)
@@ -30,68 +33,74 @@ int status = WL_IDLE_STATUS;
 
 void printWifiStatus() {
   // print the SSID of the network you're attached to:
-  Serial.println("\tWiFi network status:");
-  Serial.print("SSID: ");
-  Serial.println(WiFi.SSID());
+  Serial1.println("\tWiFi network status:");
+  Serial1.print("SSID: ");
+  Serial1.println(WiFi.SSID());
 
   // print your WiFi device's IP address:
   IPAddress ip = WiFi.localIP();
-  Serial.print("IP Address: ");
-  Serial.println(ip);
+  Serial1.print("IP Address: ");
+  Serial1.println(ip);
 
   // print the MAC address of your WiFi module:
   byte mac[6];
   WiFi.macAddress(mac);
-  Serial.print("MAC address: ");
+  Serial1.print("MAC address: ");
   for (uint8_t i = 0; i < 6; i++) {
     if (mac[i] < 0x10) {
-      Serial.print("0");
+      Serial1.print("0");
     }
-    Serial.print(mac[i], HEX);
+    Serial1.print(mac[i], HEX);
     if (i != 5) {
-      Serial.print(":");
+      Serial1.print(":");
     } else {
-      Serial.println();
+      Serial1.println();
     }
   }
 
   // print the received signal strength (RSSI):
   int32_t rssi = WiFi.RSSI();
-  Serial.print("Signal strength (RSSI): ");
-  Serial.print(rssi);
-  Serial.println(" dBm");
+  Serial1.print("Signal strength (RSSI): ");
+  Serial1.print(rssi);
+  Serial1.println(" dBm");
 }
 
-String wifi_init() {
+int wifi_init() {
   // initialize the WiFi module:
   if (WiFi.status() == WL_NO_SHIELD) {
-    Serial.println("WiFi module not detected");
+    Serial1.println("WiFi module not detected");
     // don't continue:
     while (true);
   }
 
   // print firmware version:
 //  String fv = WiFi.firmwareVersion();
-//  Serial.print("Firwmare version: ");
-//  Serial.println(fv);
+//  Serial1.print("Firwmare version: ");
+//  Serial1.println(fv);
 //
 //  if (fv != "C3.5.2.3.BETA9") {
-//    Serial.println("Please upgrade the firmware");
+//    Serial1.println("Please upgrade the firmware");
 //  }
 
   // attempt to connect to Wifi network:
   while (status != WL_CONNECTED) {
-    Serial.print("Attempting to connect to WiFi network ");
-    Serial.print(ssid);
+    Serial1.print("Attempting to connect to WiFi network ");
+    Serial1.print(ssid);
     // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
     status = WiFi.begin(ssid, pass);
 
     // wait 10 seconds for connection:
     delay(10000);
   }
-  Serial.println("...Connected.");
-  IPAddress ip = WiFi.localIP();
-  return String(ip[0]) + "." + String(ip[1]) + "." + String(ip[2]) + "." + String(ip[3]);
+  Serial1.println("...Connected.");
+  return status;
+  //IPAddress ip = WiFi.localIP();
+  //return String(ip[0]) + "." + String(ip[1]) + "." + String(ip[2]) + "." + String(ip[3]);
   //printWifiStatus();
+}
+
+void ip2char(char* ip_arr){
+  IPAddress ip = WiFi.localIP();
+  sprintf( ip_arr , "%d.%d.%d.%d" , ip[0] , ip[1] , ip[2] , ip[3] );
 }
 

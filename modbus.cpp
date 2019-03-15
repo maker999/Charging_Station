@@ -108,13 +108,13 @@ double modbus_read_kwh(){
 //  vv =  (vv<<16) | packet2->register_array[3] ;
 //  int v1 = vv/10000;
 //  int v2 = vv%10000;
-//  Serial.println(packet2->register_array[2]);
+//  Serial1.println(packet2->register_array[2]);
 //  
 //  unsigned long ff = packet3->register_array[2];
 //  ff =  (ff<<16) | packet3->register_array[3] ;
 //  int f1 = ff/10000;
 //  int f2 = ff%10000;
-//  Serial.println(f1);
+//  Serial1.println(f1);
 //
 //  unsigned long ii = packet4->register_array[2];
 //  ii =  (ii<<16) | packet4->register_array[3] ;
@@ -126,8 +126,8 @@ double modbus_read_kwh(){
   String kwh_str = String(message);
   double kwh = atof(message);
   
-//  Serial.print("kWh:");
-//  Serial.println(kwh,4);
+//  Serial1.print("kWh:");
+//  Serial1.println(kwh,4);
   
   return kwh;
 }
@@ -258,9 +258,7 @@ void checkResponse()
   if (!messageOkFlag && !messageErrFlag) // check for response
   {
     unsigned char buffer = getData();
-
   
-
     if (buffer > 0) // if there's something in the buffer continue
     {
       if (frame[0] == packet->id) // check id returned

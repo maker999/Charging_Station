@@ -4,4 +4,5 @@
 
 
 void printWifiStatus();
-String wifi_init();
+int wifi_init();
+void ip2char(char* ip_arr)
