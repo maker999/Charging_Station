@@ -48,8 +48,8 @@ M24SR nfcTag(M24SR_ADDR, &dev_i2c, NULL, GPO_PIN, RF_DISABLE_PIN);
 char serverAddress[] = "ipdb-eu2.riddleandcode.com";
 int port = 80;
 
-//HardwareSerial Serial3(PA1 , PA0);
-//HardwareSerial Serial1(PB7 , PB6);
+HardwareSerial Serial3(PA1 , PA0);
+HardwareSerial Serial1(PB7 , PB6);
 
 /*
 extern http_response_t response;
