@@ -5,10 +5,10 @@
 #include <WiFiClientST.h>
 #include <ArduinoHttpClient.h>
 
-//#define WITH_MODBUS
-//#define SECURE_ELEMENT
+#define WITH_MODBUS
+#define SECURE_ELEMENT
 #define WITH_SERIAL
-//#define EXT_NFC
+#define EXT_NFC
 
 #include <ArduinoJson.h>
 #include "wifi.h"
